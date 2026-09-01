@@ -3,25 +3,25 @@ package com.makeitshort.url.controller;
 import com.makeitshort.url.dto.CreateUrlRequest;
 import com.makeitshort.url.dto.CreateUrlResponse;
 import com.makeitshort.url.entity.UrlMapping;
+import com.makeitshort.url.service.ClickEventService;
 import com.makeitshort.url.service.UrlService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
 
+
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/v1/urls")
 public class UrlController {
 
     private final UrlService urlService;
-
-    public UrlController(UrlService urlService) {
-        this.urlService = urlService;
-    }
+    private final ClickEventService clickEventService;
 
     @PostMapping
     public ResponseEntity<CreateUrlResponse> shortenUrl(
@@ -31,7 +31,7 @@ public class UrlController {
         UrlMapping savedMapping = urlService.shortenUrl(
                 request.getLongUrl(),
                 request.getCustomCode(),
-                request.getExpiresAt()
+                request.getExpiry()
         );
 
         CreateUrlResponse response = new CreateUrlResponse(
@@ -50,10 +50,21 @@ public class UrlController {
 
     @GetMapping("/{shortCode}")
     public ResponseEntity<Void> redirectToLongUrl(
-            @PathVariable String shortCode
+            @PathVariable String shortCode,
+            HttpServletRequest request
     ) {
 
         UrlMapping mapping = urlService.getUrl(shortCode);
+        String ipAddress = request.getRemoteAddr();
+        String userAgent = request.getHeader("User-Agent");
+        String referer = request.getHeader("Referer");
+
+        clickEventService.recordClick(
+                mapping,
+                ipAddress,
+                userAgent,
+                referer
+        );
 
         return ResponseEntity
                 .status(HttpStatus.FOUND)

@@ -1,11 +1,11 @@
 package com.makeitshort.url.dto;
 
+import com.makeitshort.url.enums.Expiry;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -22,5 +22,5 @@ public class CreateUrlRequest {
     )
     private String customCode;
 
-    private LocalDateTime expiresAt;
+    private Expiry expiry;
 }

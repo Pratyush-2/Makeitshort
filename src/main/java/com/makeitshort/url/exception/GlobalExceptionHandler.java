@@ -21,4 +21,9 @@ public class GlobalExceptionHandler {
     ) {
         return exception.getMessage();
     }
+    @ExceptionHandler(UrlExpiredException.class)
+    @ResponseStatus(HttpStatus.GONE)
+    public String handleUrlExpired(UrlExpiredException exception) {
+        return exception.getMessage();
+    }
 }
