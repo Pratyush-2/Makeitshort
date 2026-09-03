@@ -7,8 +7,10 @@ import com.makeitshort.url.exception.UrlExpiredException;
 import com.makeitshort.url.exception.UrlNotFoundException;
 import com.makeitshort.url.repository.UrlRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 
 @RequiredArgsConstructor
@@ -17,8 +19,7 @@ public class UrlService {
 
     private final UrlRepository urlRepository;
     private final ShortCodeGenerator shortCodeGenerator;
-
-
+    private final RedisTemplate<String, UrlMapping> redisTemplate;
 
     public UrlMapping shortenUrl(
             String longUrl,
@@ -65,19 +66,34 @@ public class UrlService {
 
     public UrlMapping getUrl(String shortCode) {
 
+        UrlMapping cachedMapping =
+                redisTemplate.opsForValue().get(shortCode);
+
+        if (cachedMapping != null) {
+            System.out.println("CACHE HIT");
+            return cachedMapping;
+        }
+
+        System.out.println("CACHE MISS");
+
         UrlMapping mapping = urlRepository.findByShortCode(shortCode)
                 .orElseThrow(() ->
                         new UrlNotFoundException("Short URL not found"));
 
         if (mapping.getExpiresAt() != null &&
                 mapping.getExpiresAt().isBefore(LocalDateTime.now())) {
-
             throw new UrlExpiredException("Url has expired");
         }
 
+        Duration ttl = Duration.between(
+                LocalDateTime.now(),
+                mapping.getExpiresAt()
+        );
+
+        redisTemplate.opsForValue().set(shortCode, mapping, ttl);
+
         return mapping;
     }
-
     private String generateUniqueCode() {
 
         String code = shortCodeGenerator.generate();
