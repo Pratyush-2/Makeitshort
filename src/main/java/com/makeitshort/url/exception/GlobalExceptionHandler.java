@@ -26,4 +26,11 @@ public class GlobalExceptionHandler {
     public String handleUrlExpired(UrlExpiredException exception) {
         return exception.getMessage();
     }
+    @ExceptionHandler(ShortCodeGenerationException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public String handleShortCodeGenerationException(
+            ShortCodeGenerationException exception
+    ) {
+        return exception.getMessage();
+    }
 }

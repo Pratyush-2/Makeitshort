@@ -3,10 +3,12 @@ package com.makeitshort.url.service;
 import com.makeitshort.url.entity.UrlMapping;
 import com.makeitshort.url.enums.Expiry;
 import com.makeitshort.url.exception.ShortCodeAlreadyExistsException;
+import com.makeitshort.url.exception.ShortCodeGenerationException;
 import com.makeitshort.url.exception.UrlExpiredException;
 import com.makeitshort.url.exception.UrlNotFoundException;
 import com.makeitshort.url.repository.UrlRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -27,7 +29,10 @@ public class UrlService {
             Expiry expiry
     ) {
 
-        String shortCode;
+        Expiry effectiveExpiry = determineExpiry(expiry);
+
+        LocalDateTime expiresAt =
+                LocalDateTime.now().plus(effectiveExpiry.getDuration());
 
         if (customCode != null && !customCode.isBlank()) {
 
@@ -37,24 +42,30 @@ public class UrlService {
                 );
             }
 
-            shortCode = customCode;
+            UrlMapping urlMapping =
+                    new UrlMapping(longUrl, customCode, expiresAt);
 
-        } else {
-
-            shortCode = generateUniqueCode();
+            return urlRepository.save(urlMapping);
         }
 
-        Expiry effectiveExpiry = determineExpiry(expiry);
+        for (int i = 0; i < 3; i++) {
 
-        LocalDateTime expiresAt =
-                LocalDateTime.now().plus(effectiveExpiry.getDuration());
+            String shortCode = generateUniqueCode();
 
-        UrlMapping urlMapping =
-                new UrlMapping(longUrl, shortCode, expiresAt);
+            UrlMapping urlMapping =
+                    new UrlMapping(longUrl, shortCode, expiresAt);
 
-        return urlRepository.save(urlMapping);
+            try {
+                return urlRepository.save(urlMapping);
+            } catch (DataIntegrityViolationException exception) {
+                // Generated code collided. Try again.
+            }
+        }
+
+        throw new ShortCodeGenerationException(
+                "Could not generate a unique short code"
+        );
     }
-
     private Expiry determineExpiry(Expiry expiry) {
 
         if (expiry == null) {
