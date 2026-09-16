@@ -1,8 +1,10 @@
 package com.makeitshort.url.controller;
 
+import com.makeitshort.url.dto.AnalyticsResponse;
 import com.makeitshort.url.dto.CreateUrlRequest;
 import com.makeitshort.url.dto.CreateUrlResponse;
 import com.makeitshort.url.entity.UrlMapping;
+import com.makeitshort.url.service.AnalyticsService;
 import com.makeitshort.url.service.ClickEventService;
 import com.makeitshort.url.service.UrlService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +24,7 @@ public class UrlController {
 
     private final UrlService urlService;
     private final ClickEventService clickEventService;
+    private final AnalyticsService analyticsService;
 
     @PostMapping
     public ResponseEntity<CreateUrlResponse> shortenUrl(
@@ -70,5 +73,15 @@ public class UrlController {
                 .status(HttpStatus.FOUND)
                 .location(URI.create(mapping.getLongUrl()))
                 .build();
+    }
+
+    @GetMapping("/{shortCode}/analytics")
+    public ResponseEntity<AnalyticsResponse> getAnalytics(
+            @PathVariable String shortCode
+    ) {
+        AnalyticsResponse response =
+                analyticsService.getAnalytics(shortCode);
+
+        return ResponseEntity.ok(response);
     }
 }
